@@ -22,12 +22,16 @@ impl ShaderProgram {
     pub fn unbind(&self) {
         unsafe { gl::UseProgram(0) }
     }
-    pub fn get_uniform_location(&self, uniform_name: &str) -> i32 {
+    pub fn get_uniform_location(&self, uniform_name: &str) -> Result<i32, String> {
         let name_as_c_string = CString::new(uniform_name).unwrap();
         let location = unsafe {
             gl::GetUniformLocation(self.inner, name_as_c_string.as_ptr())
         };
-        location
+        if location == -1 {
+            Err(format!("Uniform \"{}\" not found", uniform_name))
+        } else {
+            Ok(location)
+        }
     }
 }
 

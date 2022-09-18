@@ -21,7 +21,7 @@ impl Painter {
 
         // Compile shaders and get uniform location for screen_coordinates
         let shader_program = ShaderProgram::new("../shaders/vertex_shader.glsl", "../shaders/vertex_shader.glsl").unwrap();
-        let screen_dimensions_uniform = shader_program.get_uniform_location("u_screen_dimensions");
+        let screen_dimensions_uniform = shader_program.get_uniform_location("u_screen_dimensions").unwrap();
 
 
         // Create vao, vbo and ibo, bind them and set attrib pointers
