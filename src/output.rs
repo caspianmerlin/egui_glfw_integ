@@ -10,7 +10,8 @@ pub struct Painter {
     index_buffer_object: GLuint,
     shader_program: ShaderProgram,
     screen_dimensions_uniform: GLint,
-    last_screen_dimensions: [i32; 2],
+    sampler_uniform: GLint,
+    last_screen_dimensions: (f32, f32),
     textures: HashMap<egui::TextureId, Texture>,
 }
 
@@ -28,6 +29,7 @@ impl Painter {
         let screen_dimensions_uniform = shader_program
             .get_uniform_location("u_screen_dimensions")
             .unwrap();
+        let sampler_uniform = shader_program.get_uniform_location("u_sampler").unwrap();
 
         // Create vao, vbo and ibo, bind them and set attrib pointers
         let (vao, vbo, ibo) = unsafe {
@@ -81,7 +83,8 @@ impl Painter {
             index_buffer_object: ibo,
             shader_program,
             screen_dimensions_uniform,
-            last_screen_dimensions: [0; 2],
+            sampler_uniform,
+            last_screen_dimensions: (0.0, 0.0),
             textures: HashMap::new(),
         }
     }
@@ -93,7 +96,7 @@ impl Painter {
         self.set_textures(&full_output.textures_delta);
 
         //Draw
-
+        let clipped_primitives = egui_context.tessellate(full_output.shapes);
         // Free the textures to be freed
         self.free_textures(&full_output.textures_delta);
     }
@@ -130,16 +133,20 @@ impl Painter {
         }
     }
 
-    fn draw(&mut self, egui_manager: &EguiManager) {
-        let (w, h) = egui_manager.screen_dimensions();
-        let w = w as i32;
-        let h = h as i32;
-        if w != self.last_screen_dimensions[0] || h != self.last_screen_dimensions[1] {
+    fn draw(&mut self, egui_manager: &EguiManager, clipped_primitives: &Vec<egui::ClippedPrimitive>) {
+        let pixels_per_point = egui_manager.pixels_per_point();
+        let screen_dimensions = egui_manager.screen_dimensions();
+        if screen_dimensions != self.last_screen_dimensions {
+            let screen_dimensions_pts = {
+                let width = screen_dimensions.0 / pixels_per_point;
+                let height = screen_dimensions.1 / pixels_per_point;
+                (width, height)
+            };
             unsafe {
-                gl::Uniform2i(self.screen_dimensions_uniform, w, h);
-                todo!()
+                gl::Uniform2f(self.screen_dimensions_uniform, screen_dimensions_pts.0, screen_dimensions_pts.1);
+                gl::Viewport(0, 0, screen_dimensions.0 as i32, screen_dimensions.1 as i32);
             }
-            self.last_screen_dimensions = [w, h];
+            self.last_screen_dimensions = screen_dimensions;
         }
 
         // Set blend function and enable sRGB conversion
@@ -152,7 +159,9 @@ impl Painter {
             gl::ActiveTexture(gl::TEXTURE0);
         }
 
+        //Drawing
 
+        //After drawing cleanup
 
     }
 
