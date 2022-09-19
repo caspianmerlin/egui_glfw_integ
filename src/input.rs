@@ -1,68 +1,58 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use cli_clipboard::{ClipboardContext, ClipboardProvider};
+use egui::Pos2;
 
-pub struct EguiManager {
+pub struct InputHandler {
     screen_rect: Option<egui::Rect>,
-    screen_dimensions: (f32, f32),
     events: Vec<egui::Event>,
     max_texture_side: usize,
     modifiers: egui::Modifiers,
-    pixels_per_point: f32,
     start_time: std::time::Instant,
-
     last_known_cursor_position: egui::Pos2,
-    clipboard_context: Option<ClipboardContext>,
+    clipboard_context: Rc<RefCell<ClipboardContext>>,
 }
-impl EguiManager {
+impl InputHandler {
     #[must_use]
     pub fn new(
-        window_width_px: f32,
-        window_height_px: f32,
+        window_dimensions_px: Pos2,
         pixels_per_point: f32,
         max_texture_side: usize,
+        clipboard_context: Rc<RefCell<ClipboardContext>>,
     ) -> Self {
-        EguiManager {
+        InputHandler {
             screen_rect: Some(egui::Rect::from_two_pos(
                 egui::pos2(0.0, 0.0),
                 egui::pos2(
-                    window_width_px / pixels_per_point,
-                    window_height_px / pixels_per_point,
+                    window_dimensions_px.x / pixels_per_point,
+                    window_dimensions_px.y / pixels_per_point,
                 ),
             )),
-            screen_dimensions: (window_width_px, window_height_px),
-            pixels_per_point,
             start_time: std::time::Instant::now(),
             events: Vec::new(),
             modifiers: egui::Modifiers::default(),
             max_texture_side,
             last_known_cursor_position: egui::Pos2::default(),
-            clipboard_context: ClipboardContext::new().ok(),
+            clipboard_context,
         }
     }
 
-    pub fn pixels_per_point(&self) -> f32 {
-        self.pixels_per_point
-    }
-    pub fn screen_dimensions(&self) -> (f32, f32) {
-        self.screen_dimensions
-    }
-
-    pub fn handle_event(&mut self, event: &glfw::WindowEvent) {
+    pub fn handle_event(&mut self, event: &glfw::WindowEvent, pixels_per_point: f32) {
         use glfw::WindowEvent as Ev;
         match *event {
             Ev::FramebufferSize(w, h) => {
-                self.screen_dimensions = (w as f32, h as f32);
                 self.screen_rect = Some(egui::Rect::from_two_pos(
                     egui::pos2(0.0, 0.0),
                     egui::pos2(
-                        w as f32 / self.pixels_per_point,
-                        h as f32 / self.pixels_per_point,
+                        w as f32 / pixels_per_point,
+                        h as f32 / pixels_per_point,
                     ),
                 ));
             }
             Ev::CursorPos(x, y) => {
                 self.last_known_cursor_position = egui::pos2(
-                    x as f32 / self.pixels_per_point,
-                    y as f32 / self.pixels_per_point,
+                    x as f32 / pixels_per_point,
+                    y as f32 / pixels_per_point,
                 );
                 self.events
                     .push(egui::Event::PointerMoved(self.last_known_cursor_position));
@@ -90,8 +80,8 @@ impl EguiManager {
             }
             Ev::Scroll(x, y) => {
                 self.events.push(egui::Event::Scroll(egui::vec2(
-                    x as f32 / self.pixels_per_point,
-                    y as f32 / self.pixels_per_point,
+                    x as f32 / pixels_per_point,
+                    y as f32 / pixels_per_point,
                 )));
             }
             Ev::Char(c) => {
@@ -110,11 +100,12 @@ impl EguiManager {
                 } else if pressed && self.modifiers.command_only() && key == egui::Key::C {
                     self.events.push(egui::Event::Copy);
                 } else if pressed && self.modifiers.command_only() && key == egui::Key::V {
-                    if let Some(ref mut clipboard_context) = self.clipboard_context {
-                        if let Ok(contents) = clipboard_context.get_contents() {
-                            self.events.push(egui::Event::Paste(contents));
-                        }
+                    
+                    let mut ctx = self.clipboard_context.borrow_mut();
+                    if let Ok(contents) = ctx.get_contents() {
+                        self.events.push(egui::Event::Paste(contents));
                     }
+
                 } else {
                     self.events.push(egui::Event::Key {
                         key,
@@ -127,10 +118,10 @@ impl EguiManager {
         }
     }
 
-    pub fn generate_raw_input(&mut self) -> egui::RawInput {
+    pub fn generate_raw_input(&mut self, pixels_per_point: f32) -> egui::RawInput {
         egui::RawInput {
             screen_rect: self.screen_rect.take(),
-            pixels_per_point: Some(self.pixels_per_point),
+            pixels_per_point: Some(pixels_per_point),
             modifiers: self.modifiers,
             max_texture_side: Some(self.max_texture_side),
             time: Some(self.start_time.elapsed().as_secs_f64()),

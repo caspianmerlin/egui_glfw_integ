@@ -6,7 +6,7 @@ pub struct ShaderProgram {
     inner: u32,
 }
 impl ShaderProgram {
-    pub fn new<T: AsRef<Path>>(vertex: T, fragment: T) -> Result<Self, Box<dyn Error>> {
+    pub fn new(vertex: &str, fragment: &str) -> Result<Self, Box<dyn Error>> {
         let vertex_shader = compile_shader(vertex, ShaderType::Vertex)?;
         let fragment_shader = compile_shader(fragment, ShaderType::Fragment)?;
         let shader_program = link_shader_program(vertex_shader, fragment_shader)?;
@@ -50,15 +50,14 @@ fn link_shader_program(vertex_shader: u32, fragment_shader: u32) -> Result<u32, 
     }
 }
 
-fn compile_shader<T: AsRef<Path>>(path: T, shader_type: ShaderType) -> Result<u32, Box<dyn Error>> {
+fn compile_shader(source: &str, shader_type: ShaderType) -> Result<u32, Box<dyn Error>> {
     let shader_type = match shader_type {
         ShaderType::Vertex => gl::VERTEX_SHADER,
         ShaderType::Fragment => gl::FRAGMENT_SHADER,
     };
 
     let shader = unsafe { gl::CreateShader(shader_type) };
-    let shader_source = fs::read_to_string(path)?;
-    let shader_c_string = CString::new(shader_source)?;
+    let shader_c_string = CString::new(source)?;
     unsafe {
         gl::ShaderSource(shader, 1, &shader_c_string.as_ptr(), std::ptr::null());
         gl::CompileShader(shader);
