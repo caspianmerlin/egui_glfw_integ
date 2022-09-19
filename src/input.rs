@@ -13,11 +13,21 @@ pub struct EguiManager {
     clipboard_context: Option<ClipboardContext>,
 }
 impl EguiManager {
-
     #[must_use]
-    pub fn new(window_width_px: f32, window_height_px: f32, pixels_per_point: f32, max_texture_side: usize) -> Self {
+    pub fn new(
+        window_width_px: f32,
+        window_height_px: f32,
+        pixels_per_point: f32,
+        max_texture_side: usize,
+    ) -> Self {
         EguiManager {
-            screen_rect: Some(egui::Rect::from_two_pos(egui::pos2(0.0, 0.0), egui::pos2(window_width_px / pixels_per_point, window_height_px / pixels_per_point))),
+            screen_rect: Some(egui::Rect::from_two_pos(
+                egui::pos2(0.0, 0.0),
+                egui::pos2(
+                    window_width_px / pixels_per_point,
+                    window_height_px / pixels_per_point,
+                ),
+            )),
             screen_dimensions: (window_width_px, window_height_px),
             pixels_per_point,
             start_time: std::time::Instant::now(),
@@ -36,20 +46,27 @@ impl EguiManager {
         self.screen_dimensions
     }
 
-
-
-
     pub fn handle_event(&mut self, event: &glfw::WindowEvent) {
         use glfw::WindowEvent as Ev;
         match *event {
             Ev::FramebufferSize(w, h) => {
                 self.screen_dimensions = (w as f32, h as f32);
-                self.screen_rect = Some(egui::Rect::from_two_pos(egui::pos2(0.0, 0.0), egui::pos2(w as f32 / self.pixels_per_point, h as f32 / self.pixels_per_point)));
-            },
+                self.screen_rect = Some(egui::Rect::from_two_pos(
+                    egui::pos2(0.0, 0.0),
+                    egui::pos2(
+                        w as f32 / self.pixels_per_point,
+                        h as f32 / self.pixels_per_point,
+                    ),
+                ));
+            }
             Ev::CursorPos(x, y) => {
-                self.last_known_cursor_position = egui::pos2(x as f32 / self.pixels_per_point, y as f32 / self.pixels_per_point);
-                self.events.push(egui::Event::PointerMoved(self.last_known_cursor_position));
-            },
+                self.last_known_cursor_position = egui::pos2(
+                    x as f32 / self.pixels_per_point,
+                    y as f32 / self.pixels_per_point,
+                );
+                self.events
+                    .push(egui::Event::PointerMoved(self.last_known_cursor_position));
+            }
             Ev::MouseButton(mouse_button, action, modifiers) => {
                 self.update_modifiers(modifiers);
                 let mouse_button = match mouse_button {
@@ -64,14 +81,22 @@ impl EguiManager {
                     glfw::Action::Release => false,
                     glfw::Action::Repeat => return,
                 };
-                self.events.push(egui::Event::PointerButton { pos: self.last_known_cursor_position, button: mouse_button, pressed, modifiers: self.modifiers });
-            },
+                self.events.push(egui::Event::PointerButton {
+                    pos: self.last_known_cursor_position,
+                    button: mouse_button,
+                    pressed,
+                    modifiers: self.modifiers,
+                });
+            }
             Ev::Scroll(x, y) => {
-                self.events.push(egui::Event::Scroll(egui::vec2(x as f32 / self.pixels_per_point, y as f32 / self.pixels_per_point)));
-            },
+                self.events.push(egui::Event::Scroll(egui::vec2(
+                    x as f32 / self.pixels_per_point,
+                    y as f32 / self.pixels_per_point,
+                )));
+            }
             Ev::Char(c) => {
                 self.events.push(egui::Event::Text(c.to_string()));
-            },
+            }
             Ev::Key(key, _, action, modifiers) => {
                 self.update_modifiers(modifiers);
                 let pressed = !matches!(action, glfw::Action::Release);
@@ -91,10 +116,14 @@ impl EguiManager {
                         }
                     }
                 } else {
-                    self.events.push(egui::Event::Key { key, pressed, modifiers: self.modifiers });
+                    self.events.push(egui::Event::Key {
+                        key,
+                        pressed,
+                        modifiers: self.modifiers,
+                    });
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 
@@ -105,7 +134,7 @@ impl EguiManager {
             modifiers: self.modifiers,
             max_texture_side: Some(self.max_texture_side),
             time: Some(self.start_time.elapsed().as_secs_f64()),
-            predicted_dt: 1.0 / 60.0,   // Revisit this
+            predicted_dt: 1.0 / 60.0, // Revisit this
             events: std::mem::take(&mut self.events),
             ..Default::default()
         }
@@ -197,7 +226,4 @@ impl EguiManager {
             _ => None,
         }
     }
-
-
-
 }
